@@ -1,0 +1,23 @@
+name: "Setup labels"
+
+on:
+  workflow_dispatch:
+
+permissions:
+  issues: write
+
+jobs:
+  labels:
+    runs-on: ubuntu-latest
+    env:
+      GH_TOKEN: ${{ github.token }}
+      GH_REPO: ${{ github.repository }}
+    steps:
+      - name: Create labels
+        run: |
+          gh label create bug --color d73a4a --description "Something is wrong" --force
+          gh label create claude-autofix --color 1f6feb --description "Let Claude try to fix this bug" --force
+          gh label create claude-in-progress --color fbca04 --description "Claude auto-fix is working on this" --force
+          gh label create claude-pr-open --color 0e8a16 --description "Claude auto-fix opened a pull request" --force
+          gh label create claude-needs-human --color b60205 --description "Claude auto-fix handed this over to a person" --force
+          gh label list

@@ -1,0 +1,30 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["summary", "verdict", "findings"],
+  "properties": {
+    "summary": { "type": "string" },
+    "verdict": { "type": "string", "enum": ["approve", "comment", "request_changes"] },
+    "findings": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["severity", "category", "file", "line", "title", "description", "suggestion"],
+        "properties": {
+          "severity": { "type": "string", "enum": ["critical", "high", "medium", "low", "info"] },
+          "category": {
+            "type": "string",
+            "enum": ["bug", "security", "performance", "test", "maintainability", "accessibility", "style"]
+          },
+          "file": { "type": "string", "description": "Repository-relative path with forward slashes." },
+          "line": { "type": "integer", "description": "Line in the new version of the file, 0 if not line-specific." },
+          "title": { "type": "string" },
+          "description": { "type": "string" },
+          "suggestion": { "type": "string", "description": "Empty string if none." }
+        }
+      }
+    }
+  }
+}

@@ -1,0 +1,12 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["fixed", "root_cause", "summary", "files"],
+  "properties": {
+    "fixed": { "type": "boolean" },
+    "root_cause": { "type": "string" },
+    "summary": { "type": "string" },
+    "files": { "type": "array", "items": { "type": "string" } }
+  }
+}

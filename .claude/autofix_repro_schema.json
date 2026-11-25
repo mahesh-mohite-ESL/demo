@@ -1,0 +1,25 @@
+{
+  "$schema": "http://json-schema.org/draft-07/schema#",
+  "type": "object",
+  "additionalProperties": false,
+  "required": ["reproducible", "reason", "test_files", "test_cases"],
+  "properties": {
+    "reproducible": { "type": "boolean" },
+    "reason": { "type": "string" },
+    "test_files": { "type": "array", "items": { "type": "string" } },
+    "test_cases": {
+      "type": "array",
+      "items": {
+        "type": "object",
+        "additionalProperties": false,
+        "required": ["title", "steps", "expected", "automated_test"],
+        "properties": {
+          "title": { "type": "string" },
+          "steps": { "type": "array", "items": { "type": "string" } },
+          "expected": { "type": "string" },
+          "automated_test": { "type": "string" }
+        }
+      }
+    }
+  }
+}

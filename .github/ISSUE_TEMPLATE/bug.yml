@@ -1,0 +1,37 @@
+name: Bug report
+description: The service shows a wrong value or a wrong warning
+labels: [bug]
+body:
+  - type: dropdown
+    id: sample
+    attributes:
+      label: Sample invoice
+      options:
+        - acme-usd
+        - bharat-inr
+        - muller-eur
+        - nova-gbp
+        - orbit-discount
+        - pioneer-qty
+        - zenith-inr
+        - other / not sure
+    validations:
+      required: true
+  - type: input
+    id: field
+    attributes:
+      label: Field or warning that is wrong
+    validations:
+      required: true
+  - type: textarea
+    id: shows
+    attributes:
+      label: What the service shows
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: What it should show, and why
+    validations:
+      required: true

@@ -1,0 +1,101 @@
+name: "CI and Claude review"
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: read
+
+concurrency:
+  group: "ci-${{ github.ref }}"
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: build
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: '3.13'
+          cache: pip
+          cache-dependency-path: requirements-dev.txt
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install dependencies
+        run: pip install -r requirements-dev.txt
+      - name: Lint
+        run: python -m ruff check .
+      - name: Unit tests
+        run: python -m pytest --junitxml=test-results/junit.xml
+      - name: Workflow script tests
+        run: npm run test:autofix
+      - name: Upload test results
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results
+          path: test-results
+          if-no-files-found: ignore
+
+  claude_review:
+    name: claude_review
+    needs: build
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+      pull-requests: write
+      statuses: write
+    env:
+      REVIEW_FAIL_ON: ${{ vars.REVIEW_FAIL_ON || 'critical,high' }}
+    steps:
+      - name: Require the API key
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+        run: |
+          if [ -z "$ANTHROPIC_API_KEY" ]; then
+            echo "::error::The secret ANTHROPIC_API_KEY is empty. Pull requests from forks get no secrets, so the review cannot run."
+            exit 1
+          fi
+      - uses: actions/checkout@v4
+        with:
+          ref: ${{ github.event.pull_request.head.sha }}
+          fetch-depth: 0
+          persist-credentials: false
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+      - name: Install Claude Code
+        run: npm install --no-audit --no-fund --prefix "$RUNNER_TEMP/claude-cli" @anthropic-ai/claude-code@latest
+      - name: Load prior findings
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/pr-review/load-prior-findings.mjs
+      - name: Run the review
+        env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          CLAUDE_CODE_PACKAGE_DIR: ${{ runner.temp }}/claude-cli/node_modules/@anthropic-ai/claude-code
+          CLAUDE_MODEL: ${{ vars.REVIEW_MODEL || 'claude-sonnet-5-5' }}
+          CLAUDE_MAX_BUDGET_USD: ${{ vars.REVIEW_BUDGET_USD || '2' }}
+        run: node scripts/pr-review/run-review.mjs
+      - name: Post findings
+        if: ${{ !cancelled() }}
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: node scripts/pr-review/post-findings.mjs
+      - name: Upload review output
+        if: ${{ !cancelled() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: claude-review
+          path: pr-review-output
+      - name: Review gate
+        if: ${{ !cancelled() }}
+        run: node scripts/pr-review/gate.mjs

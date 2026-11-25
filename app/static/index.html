@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="color-scheme" content="light dark">
+<title>Invoice extractor</title>
+<style>
+  :root {
+    --bg: #f6f7f9; --panel: #ffffff; --text: #1d232b; --muted: #5d6877; --border: #d5dbe3;
+    --accent: #1f6feb; --warn-bg: #fff4c2; --warn-border: #e0b800; --ok-bg: #dcf5e1; --ok-border: #2da44e;
+    --err-bg: #ffe0de; --err-border: #d1242f;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root {
+      --bg: #14181d; --panel: #1d232b; --text: #e6e9ee; --muted: #9aa5b4; --border: #333c48;
+      --accent: #58a6ff; --warn-bg: #3d3300; --warn-border: #b08800; --ok-bg: #0f3318; --ok-border: #2ea043;
+      --err-bg: #4a1613; --err-border: #f85149;
+    }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; font-family: system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; background: var(--bg); color: var(--text); }
+  header { padding: 16px 24px; border-bottom: 1px solid var(--border); background: var(--panel); }
+  h1 { margin: 0 0 4px; font-size: 1.4rem; }
+  header p { margin: 0; color: var(--muted); font-size: .9rem; }
+  main { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; padding: 16px 24px; }
+  @media (max-width: 800px) { main { grid-template-columns: 1fr; padding: 12px; } }
+  section { background: var(--panel); border: 1px solid var(--border); border-radius: 8px; padding: 16px; min-width: 0; }
+  h2 { font-size: 1.05rem; margin: 16px 0 8px; }
+  h2:first-child { margin-top: 0; }
+  select, input[type=file], button { font: inherit; color: inherit; }
+  select { width: 100%; padding: 8px; background: var(--bg); border: 1px solid var(--border); border-radius: 6px; }
+  iframe { width: 100%; height: 560px; margin-top: 12px; border: 1px solid var(--border); border-radius: 6px; background: #fff; }
+  .upload { margin-top: 12px; padding: 12px; border: 1px dashed var(--border); border-radius: 6px; }
+  .upload label { display: block; margin-bottom: 8px; font-size: .9rem; color: var(--muted); }
+  button { padding: 8px 14px; border: 1px solid var(--accent); background: var(--accent); color: #fff; border-radius: 6px; cursor: pointer; margin-top: 8px; }
+  button:disabled { opacity: .5; cursor: default; }
+  table { width: 100%; border-collapse: collapse; font-size: .9rem; }
+  th, td { text-align: left; padding: 6px 8px; border-bottom: 1px solid var(--border); vertical-align: top; }
+  td.num, th.num { text-align: right; }
+  .raw { display: block; color: var(--muted); font-size: .78rem; }
+  .box { padding: 10px 12px; border-radius: 6px; margin-bottom: 8px; border: 1px solid; }
+  .warn { background: var(--warn-bg); border-color: var(--warn-border); }
+  .ok { background: var(--ok-bg); border-color: var(--ok-border); }
+  .err { background: var(--err-bg); border-color: var(--err-border); }
+  .muted { color: var(--muted); }
+</style>
+</head>
+<body>
+<header>
+  <h1>Invoice extractor</h1>
+  <p>Pick a sample invoice or upload your own PDF. Claude reads the printed values; the service converts them and checks the arithmetic.</p>
+</header>
+<main>
+  <section>
+    <select id="sample" aria-label="Sample invoice"></select>
+    <iframe id="pdf" title="Invoice PDF"></iframe>
+    <div class="upload">
+      <label for="upload">Or upload your own invoice (PDF, up to 5 MB)</label>
+      <input type="file" id="upload" accept="application/pdf,.pdf">
+      <button type="button" id="upload-btn">Extract uploaded PDF</button>
+    </div>
+  </section>
+  <section id="result"><p class="muted">Select a sample to see the extracted values.</p></section>
+</main>
+<script>
+(function () {
+  var sampleEl = document.getElementById("sample");
+  var pdfEl = document.getElementById("pdf");
+  var resultEl = document.getElementById("result");
+  var uploadEl = document.getElementById("upload");
+  var uploadBtn = document.getElementById("upload-btn");
+  var repoUrl = "";
+
+  function esc(value) {
+    return String(value === null || value === undefined ? "" : value)
+      .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+      .replace(/"/g, "&quot;").replace(/'/g, "&#39;");
+  }
+
+  function cell(value, raw) {
+    var shown = value === null || value === undefined || value === "" ? "-" : value;
+    return esc(shown) + '<span class="raw">printed: ' + esc(raw) + "</span>";
+  }
+
+  function showMessage(text, cls) {
+    resultEl.innerHTML = '<div class="box ' + cls + '">' + esc(text) + "</div>";
+  }
+
+  function render(data) {
+    var inv = data.invoice, raw = data.raw, html = "";
+    html += "<h2>Validation</h2>";
+    if (data.warnings.length) {
+      data.warnings.forEach(function (w) { html += '<div class="box warn">' + esc(w) + "</div>"; });
+    } else {
+      html += '<div class="box ok">No validation warnings.</div>';
+    }
+    html += "<h2>Extracted fields</h2><table><tbody>";
+    [
+      ["Invoice number", inv.invoice_number, raw.invoice_number],
+      ["Vendor", inv.vendor_name, raw.vendor_name],
+      ["Invoice date", inv.invoice_date, raw.invoice_date],
+      ["Due date", inv.due_date, raw.due_date],
+      ["Currency", inv.currency, raw.currency],
+      ["Subtotal", inv.subtotal, raw.subtotal],
+      ["Discount", inv.discount, raw.discount],
+      ["Tax", inv.tax, raw.tax],
+      ["Total", inv.total, raw.total]
+    ].forEach(function (row) {
+      html += "<tr><th>" + esc(row[0]) + "</th><td>" + cell(row[1], row[2]) + "</td></tr>";
+    });
+    html += "</tbody></table>";
+    html += "<h2>Line items</h2><table><thead><tr><th>Description</th><th class=\"num\">Quantity</th><th class=\"num\">Unit price</th><th class=\"num\">Amount</th></tr></thead><tbody>";
+    inv.line_items.forEach(function (item, i) {
+      var r = raw.line_items[i] || {};
+      html += "<tr><td>" + cell(item.description, r.description) + '</td><td class="num">' + cell(item.quantity, r.quantity) +
+        '</td><td class="num">' + cell(item.unit_price, r.unit_price) + '</td><td class="num">' + cell(item.amount, r.amount) + "</td></tr>";
+    });
+    html += "</tbody></table>";
+    html += '<p class="muted">Source: ' + esc(data.source) + "</p>";
+    if (repoUrl) {
+      html += '<button type="button" id="report-bug">Report a bug</button>';
+    }
+    resultEl.innerHTML = html;
+    var bug = document.getElementById("report-bug");
+    if (bug) {
+      bug.addEventListener("click", function () {
+        window.open(repoUrl + "/issues/new?template=bug.yml&title=" + encodeURIComponent("[" + data.sample_id + "]"), "_blank", "noopener");
+      });
+    }
+  }
+
+  function errorText(res, body) {
+    var detail = body && body.detail;
+    if (typeof detail === "string") { return detail; }
+    if (detail) { return JSON.stringify(detail); }
+    return "Request failed (" + res.status + ").";
+  }
+
+  function handle(res) {
+    return res.json().catch(function () { return null; }).then(function (body) {
+      if (!res.ok) { showMessage(errorText(res, body), "err"); return; }
+      render(body);
+    });
+  }
+
+  function extractSample(id) {
+    pdfEl.src = "/samples/" + encodeURIComponent(id) + ".pdf";
+    showMessage("Extracting...", "ok");
+    fetch("/extract/" + encodeURIComponent(id), { method: "POST" })
+      .then(handle)
+      .catch(function () { showMessage("The service could not be reached.", "err"); });
+  }
+
+  uploadBtn.addEventListener("click", function () {
+    var file = uploadEl.files && uploadEl.files[0];
+    if (!file) { showMessage("Choose a PDF file first.", "err"); return; }
+    pdfEl.src = URL.createObjectURL(file);
+    showMessage("Sending the file to Claude...", "ok");
+    uploadBtn.disabled = true;
+    fetch("/extract-upload", { method: "POST", headers: { "Content-Type": "application/pdf" }, body: file })
+      .then(handle)
+      .catch(function () { showMessage("The service could not be reached.", "err"); })
+      .then(function () { uploadBtn.disabled = false; });
+  });
+
+  sampleEl.addEventListener("change", function () { extractSample(sampleEl.value); });
+
+  fetch("/config").then(function (r) { return r.json(); }).then(function (c) { repoUrl = c.repo_url || ""; }).catch(function () {})
+    .then(function () { return fetch("/samples"); })
+    .then(function (r) { return r.json(); })
+    .then(function (samples) {
+      sampleEl.innerHTML = samples.map(function (s) { return '<option value="' + esc(s.id) + '">' + esc(s.title) + "</option>"; }).join("");
+      if (samples.length) { extractSample(samples[0].id); }
+    })
+    .catch(function () { showMessage("The sample list could not be loaded.", "err"); });
+})();
+</script>
+</body>
+</html>
