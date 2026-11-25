@@ -98,3 +98,7 @@ def test_normalize_invoice_converts_every_field():
 
 def test_parse_date_reads_dashed_upper_case_month_with_two_digit_year():
     assert parse_date("01-NOV-25") == date(2025, 11, 1)
+
+
+def test_parse_date_reads_dashed_upper_case_month_with_four_digit_year():
+    assert parse_date("02-NOV-2025") == date(2025, 11, 2)
