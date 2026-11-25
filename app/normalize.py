@@ -54,7 +54,7 @@ def parse_date(text: str, day_first: bool = False) -> date | None:
 
 
 def clean_invoice_number(text: str) -> str:
-    return text.strip().lstrip("#No.: ")
+    return re.sub(r"^(?:No\.|#)[\s:]*", "", text.strip()).strip()
 
 
 def clean_text(text: str) -> str:

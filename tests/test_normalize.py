@@ -75,6 +75,10 @@ def test_clean_invoice_number_removes_a_leading_label():
     assert clean_invoice_number("# INV-10021 ") == "INV-10021"
 
 
+def test_clean_invoice_number_keeps_a_leading_letter_that_is_part_of_the_number():
+    assert clean_invoice_number("NOVA-2041") == "NOVA-2041"
+
+
 def test_clean_text_collapses_whitespace():
     assert clean_text("  Acme \n  Cloud\tServices  ") == "Acme Cloud Services"
 
