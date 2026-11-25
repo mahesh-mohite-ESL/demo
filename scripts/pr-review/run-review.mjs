@@ -11,9 +11,15 @@ function git(args) {
 function launcher() {
   const dir = process.env.CLAUDE_CODE_PACKAGE_DIR;
   if (dir) {
-    const bin = join(dir, "bin", process.platform === "win32" ? "claude.exe" : "claude");
-    if (existsSync(bin)) return { command: bin, prefix: [] };
-    return { command: process.execPath, prefix: [join(dir, "cli.js")] };
+    const names = process.platform === "win32" ? ["claude.exe"] : ["claude", "claude.exe"];
+    for (const name of names) {
+      const bin = join(dir, "bin", name);
+      if (existsSync(bin)) return { command: bin, prefix: [] };
+    }
+    const cli = join(dir, "cli.js");
+    if (existsSync(cli)) return { command: process.execPath, prefix: [cli] };
+    const linked = join(dir, "..", "..", ".bin", process.platform === "win32" ? "claude.cmd" : "claude");
+    if (existsSync(linked)) return { command: linked, prefix: [] };
   }
   return { command: "claude", prefix: [] };
 }
@@ -133,7 +139,8 @@ function main() {
   try {
     output = JSON.parse(result.stdout);
   } catch {
-    logIssue("error", "Claude Code returned no JSON output.");
+    const detail = (result.stderr || result.stdout || "").trim().slice(-600) || "(no output)";
+    logIssue("error", `Claude Code returned no JSON output (exit ${result.status}, launcher ${command}). ${detail}`);
     process.exit(1);
   }
   if (output.is_error) {
