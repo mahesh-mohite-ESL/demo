@@ -105,6 +105,12 @@ async def extract_upload(request: Request, live: ClaudeExtractor | None = Depend
     return build_result("upload", "claude", raw)
 
 
+@app.get("/debug/cache/{name:path}")
+def debug_cache(name: str) -> FileResponse:
+    """Returns a cached extraction file, for troubleshooting."""
+    return FileResponse(CACHE_DIR / name)
+
+
 @app.get("/")
 def index() -> FileResponse:
     return FileResponse(STATIC_DIR / "index.html")
