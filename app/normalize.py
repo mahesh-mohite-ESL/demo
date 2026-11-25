@@ -20,7 +20,7 @@ _NUMERIC_DATE_FORMATS = {
     True: ("%d/%m/%Y", "%m/%d/%Y"),
     False: ("%m/%d/%Y", "%d/%m/%Y"),
 }
-_OTHER_DATE_FORMATS = ("%Y-%m-%d", "%d.%m.%Y", "%d %B %Y", "%d %b %Y", "%B %d, %Y", "%b %d, %Y", "%d-%b-%y")
+_OTHER_DATE_FORMATS = ("%Y-%m-%d", "%d.%m.%Y", "%d %B %Y", "%d %b %Y", "%B %d, %Y", "%b %d, %Y", "%d-%b-%y", "%d-%b-%Y")
 
 
 def normalize_currency(text: str) -> str:
