@@ -94,3 +94,7 @@ def test_normalize_invoice_converts_every_field():
     assert invoice.line_items[0].amount == Decimal("50000.00")
     assert invoice.discount == Decimal("0")
     assert invoice.total == Decimal("59000.00")
+
+
+def test_parse_date_reads_dashed_upper_case_month_with_two_digit_year():
+    assert parse_date("01-NOV-25") == date(2025, 11, 1)
